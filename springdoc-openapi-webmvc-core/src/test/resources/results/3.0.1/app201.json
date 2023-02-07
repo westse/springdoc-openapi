@@ -1,0 +1,401 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "OpenAPI definition",
+    "version": "v0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost",
+      "description": "Generated server url"
+    }
+  ],
+  "paths": {
+    "/class-hierarchy/my-base": {
+      "post": {
+        "tags": [
+          "controller"
+        ],
+        "operationId": "abstractParent",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/MySub1WithListOfMyBase"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MySub2WithMyBase"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MySub2WithYourBase"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MySub3Simple"
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "MyBase": {
+        "required": [
+          "type"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "MyBaseHolder": {
+        "type": "object",
+        "properties": {
+          "myBase": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MySub1WithListOfMyBase"
+              },
+              {
+                "$ref": "#/components/schemas/MySub2WithMyBase"
+              },
+              {
+                "$ref": "#/components/schemas/MySub2WithYourBase"
+              },
+              {
+                "$ref": "#/components/schemas/MySub3Simple"
+              }
+            ]
+          }
+        }
+      },
+      "MySub1WithListOfMyBase": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/MyBase"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "myBaseList": {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/MySub1WithListOfMyBase"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MySub2WithMyBase"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MySub2WithYourBase"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MySub3Simple"
+                    }
+                  ]
+                }
+              },
+              "myBaseHolder": {
+                "$ref": "#/components/schemas/MyBaseHolder"
+              }
+            }
+          }
+        ]
+      },
+      "MySub2WithMyBase": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/MyBase"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "myBase": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/MySub1WithListOfMyBase"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MySub2WithMyBase"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MySub2WithYourBase"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MySub3Simple"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "MySub2WithYourBase": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/MyBase"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "yourSub3Simple": {
+                "$ref": "#/components/schemas/YourSub3Simple"
+              },
+              "yourBase": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/YourSub1WithListOfYourBase"
+                  },
+                  {
+                    "$ref": "#/components/schemas/YourSub2WithMyBase"
+                  },
+                  {
+                    "$ref": "#/components/schemas/YourSub2WithYourBase"
+                  },
+                  {
+                    "$ref": "#/components/schemas/YourSub3Simple"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "MySub3Simple": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/MyBase"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "mySub1Param_simple": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "YourBase": {
+        "required": [
+          "type"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "YourBaseHolder": {
+        "type": "object",
+        "properties": {
+          "yourBase": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/YourSub1WithListOfYourBase"
+              },
+              {
+                "$ref": "#/components/schemas/YourSub2WithMyBase"
+              },
+              {
+                "$ref": "#/components/schemas/YourSub2WithYourBase"
+              },
+              {
+                "$ref": "#/components/schemas/YourSub3Simple"
+              }
+            ]
+          }
+        }
+      },
+      "YourSub1WithListOfYourBase": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/YourBase"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "yourBaseHolder": {
+                "$ref": "#/components/schemas/YourBaseHolder"
+              },
+              "yourBaseList": {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/YourSub1WithListOfYourBase"
+                    },
+                    {
+                      "$ref": "#/components/schemas/YourSub2WithMyBase"
+                    },
+                    {
+                      "$ref": "#/components/schemas/YourSub2WithYourBase"
+                    },
+                    {
+                      "$ref": "#/components/schemas/YourSub3Simple"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      },
+      "YourSub2WithMyBase": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/YourBase"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "mySub3Simple": {
+                "$ref": "#/components/schemas/MySub3Simple"
+              },
+              "myBase": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/MySub1WithListOfMyBase"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MySub2WithMyBase"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MySub2WithYourBase"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MySub3Simple"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "YourSub2WithYourBase": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/YourBase"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "yourBase": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/YourSub1WithListOfYourBase"
+                  },
+                  {
+                    "$ref": "#/components/schemas/YourSub2WithMyBase"
+                  },
+                  {
+                    "$ref": "#/components/schemas/YourSub2WithYourBase"
+                  },
+                  {
+                    "$ref": "#/components/schemas/YourSub3Simple"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "YourSub3Simple": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/YourBase"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "yourSub1Param_simple": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "Response": {
+        "type": "object",
+        "properties": {
+          "myBase": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MySub1WithListOfMyBase"
+              },
+              {
+                "$ref": "#/components/schemas/MySub2WithMyBase"
+              },
+              {
+                "$ref": "#/components/schemas/MySub2WithYourBase"
+              },
+              {
+                "$ref": "#/components/schemas/MySub3Simple"
+              }
+            ]
+          },
+          "yourBase": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/YourSub1WithListOfYourBase"
+              },
+              {
+                "$ref": "#/components/schemas/YourSub2WithMyBase"
+              },
+              {
+                "$ref": "#/components/schemas/YourSub2WithYourBase"
+              },
+              {
+                "$ref": "#/components/schemas/YourSub3Simple"
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}
