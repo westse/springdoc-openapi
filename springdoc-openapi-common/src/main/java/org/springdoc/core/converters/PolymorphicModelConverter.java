@@ -23,11 +23,11 @@
 package org.springdoc.core.converters;
 
 import java.lang.reflect.Modifier;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -58,6 +58,7 @@ public class PolymorphicModelConverter implements ModelConverter {
 	private final AtomicInteger recursionCounter = new AtomicInteger();
 
 	private final Map<String, JavaType> nameToType = new LinkedHashMap<>();
+	private final Map<String, ComposedSchema> allComposed = new TreeMap<>();
 
 
 	/**
@@ -95,50 +96,63 @@ public class PolymorphicModelConverter implements ModelConverter {
 		if (javaType != null) {
 			if (chain.hasNext()) {
 				Schema schema = withCount(() -> chain.next().resolve(type, context, chain));
+				for (Map.Entry<String, Schema> e : context.getDefinedModels().entrySet()) {
+					if (e.getValue() instanceof ComposedSchema && ((ComposedSchema)e.getValue()).getAllOf() != null) {
+						allComposed.put(e.getKey(), (ComposedSchema) e.getValue());
+					}
+				}
+
 				if (schema == null) {
 					return schema;
 				}
 				schema = getResolvedSchema(javaType, schema);
 				if (schema.getName() != null) {
 					nameToType.put(schema.getName(), javaType);
+					if (schema instanceof ComposedSchema && schema.getAllOf() != null) {
+						allComposed.put(schema.getName(), (ComposedSchema) schema);
+					}
 				}
 				if (recursionCounter.get() > 0) {
 					return schema;
 				}
 
+				// Replace any non-composed defined models with their most-recent composed versions
+				allComposed.forEach((k, v) -> context.defineModel(k, v));
+
 				// This is the original non-recursive schema, so apply polymorphic fixups
-				Collection<Schema> schemas = context.getDefinedModels().values();
 				if (schema.get$ref() != null) {
-					schema = composePolymorphicSchema(schema, schemas);
+					schema = composePolymorphicSchema(schema);
 				}
-				findAndReplacePolymorphicSchemas(schema, schemas);
+				findAndReplacePolymorphicSchemas(schema);
 
 				// Also fixup references in previously defined models
-				for (Schema prevDefinedSchema : schemas) {
-					findAndReplacePolymorphicSchemas(prevDefinedSchema, schemas);
+				for (Schema prevDefinedSchema: context.getDefinedModels().values()) {
+					findAndReplacePolymorphicSchemas(prevDefinedSchema);
 				}
 
+				nameToType.clear();
+				allComposed.clear();
 				return schema;
 			}
 		}
 		return null;
 	}
 
-	private void findAndReplacePolymorphicSchemas(Schema schema, Collection<Schema> schemas) {
+	private void findAndReplacePolymorphicSchemas(Schema schema) {
 		// Schema is not itself a ref but may have properties that are, so convert those.
-		findAndReplacePolymorphicProps(schema, schemas);
-		findAndReplacePolymorphicAllOf(schema, schemas);
-		findAndReplacePolymorphicItems(schema, schemas);
+		findAndReplacePolymorphicProps(schema);
+		findAndReplacePolymorphicAllOf(schema);
+		findAndReplacePolymorphicItems(schema);
 	}
 
-	private Schema findAndReplacePolymorphicProps(Schema<?> schema, Collection<Schema> schemas) {
+	private Schema findAndReplacePolymorphicProps(Schema<?> schema) {
 		if (schema.getProperties() != null) {
 			Map<String, Schema> newProps = schema.getProperties().entrySet().stream()
 					.collect(Collectors.toMap(Map.Entry::getKey, entry -> {
 						Schema propSchema = entry.getValue().get$ref() != null
-								? composePolymorphicSchema(entry.getValue(), schemas)
+								? composePolymorphicSchema(entry.getValue())
 								: entry.getValue();
-						findAndReplacePolymorphicItems(propSchema, schemas);
+						findAndReplacePolymorphicItems(propSchema);
 						return propSchema;
 					}));
 			schema.setProperties(newProps);
@@ -146,22 +160,22 @@ public class PolymorphicModelConverter implements ModelConverter {
 		return schema;
 	}
 
-	private Schema findAndReplacePolymorphicAllOf(Schema<?> schema, Collection<Schema> schemas) {
+	private Schema findAndReplacePolymorphicAllOf(Schema<?> schema) {
 		if (schema.getAllOf() != null) {
 			for (Object element : schema.getAllOf()) {
 				if (element instanceof ObjectSchema) {
-					findAndReplacePolymorphicProps((ObjectSchema)element, schemas);
+					findAndReplacePolymorphicProps((ObjectSchema)element);
 					// TODO: needed?
-					findAndReplacePolymorphicItems((ObjectSchema)element, schemas);
+					findAndReplacePolymorphicItems((ObjectSchema)element);
 				}
 			}
 		}
 		return schema;
 	}
 
-	private Schema findAndReplacePolymorphicItems(Schema<?> schema, Collection<Schema> schemas) {
+	private Schema findAndReplacePolymorphicItems(Schema<?> schema) {
 		if (schema.getItems() != null && schema.getItems().get$ref() != null && schema instanceof ArraySchema) {
-			schema.setItems(composePolymorphicSchema(schema.getItems(), schemas));
+			schema.setItems(composePolymorphicSchema(schema.getItems()));
 		}
 		else if (schema.getItems() != null && schema.getItems().get$ref() != null) {
 			System.out.println("@@@ PMC.composePolymorphicItems. items.class=" + schema.getItems().getClass());
@@ -174,19 +188,18 @@ public class PolymorphicModelConverter implements ModelConverter {
 	 * Compose polymorphic schema schema.
 	 *
 	 * @param schema the schema
-	 * @param schemas the schemas
 	 * @return the schema
 	 */
-	private Schema composePolymorphicSchema(Schema schema, Collection<Schema> schemas) {
+	private Schema composePolymorphicSchema(Schema schema) {
 		String ref = schema.get$ref();
-		List<Schema> composedSchemas = schemas.stream()
-				.filter(ComposedSchema.class::isInstance)
-				.map(ComposedSchema.class::cast)
+		List<Schema> composedSchemas = allComposed.values().stream()
 				.filter(s -> s.getAllOf() != null)
 				.filter(s -> s.getAllOf().stream().anyMatch(s2 -> ref.equals(s2.get$ref())))
 				.map(s -> new Schema().$ref(AnnotationsUtils.COMPONENTS_REF + s.getName()))
 				.collect(Collectors.toList());
-		if (composedSchemas.isEmpty()) return schema;
+		if (composedSchemas.isEmpty()) {
+			return schema;
+		}
 
 		ComposedSchema result = new ComposedSchema();
 		if (isConcreteClass(ref)) result.addOneOfItem(schema);
