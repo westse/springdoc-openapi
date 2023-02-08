@@ -106,10 +106,14 @@ public class PolymorphicModelConverter implements ModelConverter {
 					return schema;
 				}
 				schema = getResolvedSchema(javaType, schema);
-				if (schema.getName() != null) {
-					nameToType.put(schema.getName(), javaType);
+				String schemaName = schema.getName();
+				if (schemaName == null && schema.get$ref() != null) {
+					schemaName = (String) RefUtils.extractSimpleName(schema.get$ref()).getLeft();
+				}
+				if (schemaName != null) {
+					nameToType.put(schemaName, javaType);
 					if (schema instanceof ComposedSchema && schema.getAllOf() != null) {
-						allComposed.put(schema.getName(), (ComposedSchema) schema);
+						allComposed.put(schemaName, (ComposedSchema) schema);
 					}
 				}
 				if (recursionCounter.get() > 0) {
